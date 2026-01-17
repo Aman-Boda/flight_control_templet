@@ -14,13 +14,27 @@ AMyPilot::AMyPilot()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	// RENAMED COMPONENTS
+	// 1. Setup Spring Arm
 	C_SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("C_SpringArm"));
 	C_SpringArm->SetupAttachment(RootComponent);
 
+	// --- YOUR SPECIFIC VALUES APPLIED HERE ---
+	C_SpringArm->TargetArmLength = SpringArmLength; // Defaults to 100.0f
+	C_SpringArm->SocketOffset = FVector(-1400.0f, 0.0f, 700.0f); // X:-1400, Y:0, Z:700
+	C_SpringArm->SetRelativeRotation(FRotator(-30.0f, 0.0f, 0.0f)); // Pitch: -30
+	// ----------------------------------------
+
+	C_SpringArm->bEnableCameraLag = false; // We handle custom lag in Tick
+	C_SpringArm->bInheritPitch = true;
+	C_SpringArm->bInheritYaw = true;
+	C_SpringArm->bInheritRoll = true;
+
+	// 2. Setup Camera
 	C_Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("C_Camera"));
 	C_Camera->SetupAttachment(C_SpringArm);
+	C_Camera->bUsePawnControlRotation = false;
 
+	// 3. Audio Setup
 	M_EngineAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("M_EngineAudio"));
 	M_EngineAudio->SetupAttachment(RootComponent);
 
@@ -42,6 +56,15 @@ void AMyPilot::BeginPlay()
 	{
 		JetMesh->OnComponentBeginOverlap.AddDynamic(this, &AMyPilot::OnJetOverlap);
 	}
+
+	// --- FIX FOR DRIFTING (REVOKE THE MOVEMENT) ---
+	// We force the specific values again on start to ensure no interpolation happens
+	if (C_SpringArm)
+	{
+		C_SpringArm->SetRelativeRotation(FRotator(-30.0f, 0.0f, 0.0f));
+		C_SpringArm->SocketOffset = FVector(-1400.0f, 0.0f, 700.0f);
+	}
+	// ----------------------------------------------
 
 	TArray<USceneComponent*> AllComps;
 	GetComponents<USceneComponent>(AllComps);
@@ -126,20 +149,27 @@ void AMyPilot::ForwardMovement(float DeltaTime)
 
 void AMyPilot::RotationControl(float DeltaTime)
 {
+	// 1. Rotate the Plane Mesh
 	FRotator DeltaRot;
 	DeltaRot.Roll = roll_adder * DeltaTime;
 	DeltaRot.Pitch = pitch_adder * DeltaTime;
 	DeltaRot.Yaw = yaw_adder * DeltaTime;
 	AddActorLocalRotation(DeltaRot);
 
-	if (C_SpringArm) // Updated variable
+	// 2. Sway the Camera (Dynamic Lag)
+	if (C_SpringArm)
 	{
 		double SpeedDivisor = (currentSpeed * 2.0 <= 1.0f) ? 1.0f : (currentSpeed * 2.0);
 		double Intensity = maxSpeed / SpeedDivisor;
 
 		FRotator TargetCamRot;
 		TargetCamRot.Roll = roll_adder * cameraLag * Intensity;
-		TargetCamRot.Pitch = pitch_adder * cameraLag * Intensity;
+
+		// --- YOUR SPECIFIC ROTATION (-30) APPLIED HERE ---
+		// We add the sway on top of your -30 base pitch
+		TargetCamRot.Pitch = -30.0f + (pitch_adder * cameraLag * Intensity);
+		// -------------------------------------------------
+
 		TargetCamRot.Yaw = yaw_adder * cameraLag * Intensity;
 
 		FRotator NewCamRot = FMath::RInterpTo(C_SpringArm->GetRelativeRotation(), TargetCamRot, DeltaTime, springArmInterp);
@@ -151,11 +181,13 @@ void AMyPilot::UpdateSpeedAndEffects(float DeltaTime)
 {
 	currentSpeed = FMath::FInterpConstantTo(currentSpeed, targetSpeed, DeltaTime, SpeedInterp);
 
-	if (C_SpringArm) // Updated variable
+	if (C_SpringArm)
 	{
 		double SpeedRatio = currentSpeed / maxSpeed;
 		double ZoomFactor = (SpeedRatio * 5.0f) + 1.0f;
-		C_SpringArm->TargetArmLength = ZoomFactor * springarmLengh;
+
+		// Uses your SpringArmLength variable (100.0f)
+		C_SpringArm->TargetArmLength = ZoomFactor * SpringArmLength;
 	}
 
 	if (M_EngineAudio)
@@ -173,7 +205,7 @@ void AMyPilot::UpdateSpeedAndEffects(float DeltaTime)
 void AMyPilot::StartFiring()
 {
 	isFiringBullet = true;
-	FireMachineGun(); // Updated Name
+	FireMachineGun();
 	if (M_MachineGunAudio) M_MachineGunAudio->Play();
 }
 
@@ -183,7 +215,7 @@ void AMyPilot::StopFiring()
 	if (M_MachineGunAudio) M_MachineGunAudio->Stop();
 }
 
-void AMyPilot::FireMachineGun() // Updated Name
+void AMyPilot::FireMachineGun()
 {
 	if (!isFiringBullet)
 	{

@@ -4,6 +4,13 @@
 #include "GameFramework/Character.h"
 #include "MyPilot.generated.h"
 
+// Forward declarations
+class USpringArmComponent;
+class UCameraComponent;
+class UAudioComponent;
+class USoundBase;
+class UParticleSystem;
+
 UCLASS()
 class FLIGHT_CONTROL_TEMPLET_API AMyPilot : public ACharacter
 {
@@ -20,14 +27,14 @@ public:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	// ====================================================================
-	// COMPONENTS (Renamed to fix your crash)
+	// COMPONENTS
 	// ====================================================================
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	class USpringArmComponent* C_SpringArm; // Renamed
+	USpringArmComponent* C_SpringArm;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	class UCameraComponent* C_Camera; // Renamed
+	UCameraComponent* C_Camera;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USkeletalMeshComponent* JetMesh;
@@ -66,11 +73,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	double SpeedInterp = 2000.0f;
 
-	// Rotation
+	// Rotation Internal
 	double pitch = 0.0f;
 	double roll = 0.0f;
 	double yaw = 0.0f;
 
+	// Rotation Current State
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	double pitch_adder = 0.0f;
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
@@ -78,6 +86,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	double yaw_adder = 0.0f;
 
+	// Rotation Limits
 	UPROPERTY(EditAnywhere, Category = "Controls")
 	double pitch_max = 60.0f;
 	UPROPERTY(EditAnywhere, Category = "Controls")
@@ -85,6 +94,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Controls")
 	double yaw_max = 40.0f;
 
+	// Rotation Interp Speeds
 	UPROPERTY(EditAnywhere, Category = "Controls")
 	double interpPitch = 150.0f;
 	UPROPERTY(EditAnywhere, Category = "Controls")
@@ -92,8 +102,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Controls")
 	double interpYaw = 100.0f;
 
+	// --- YOUR SPECIFIC VALUE (100) ---
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
-	double springarmLengh = 500.0f;
+	double SpringArmLength = 100.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
 	double cameraLag = 1.0f;
@@ -146,7 +157,6 @@ protected:
 	void CalculateRotationRates(float DeltaTime);
 	void UpdateSpeedAndEffects(float DeltaTime);
 
-	// Renamed function to fix "ShootBullet" conflict
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void FireMachineGun();
 
@@ -155,6 +165,7 @@ protected:
 	void ToggleWheels();
 	void DestroyPilot();
 
+	// Input Handlers
 	void InputPitch(float Val);
 	void InputRoll(float Val);
 	void InputYaw(float Val);
